@@ -1,0 +1,142 @@
+Chaum protocol
+
+(A) ECashSetup(lamda):
+- Generate RSA parameters: n = p*q
+- 2 cryptograhie hash functions h1, h2: Z*_n * Z*_n -> Z*_n
+- output pp = (h1, h2, n, lamda, h), sp = (p, q) where k = k(lamda)
+// sp is secret parameters
+
+(B) BankKeyGen(pp, sp):
+// pp is public parameter
+- DB = { }
+- For each account id_u set counter v=0
+- Generate RSA public/secret key pair (pk, sk) = ((n, e), d)
+- outputs (pk, sk)
+
+(C) Withdraw protocol
+User (pp, pk):       Bank(pp, sp, pk, sk):
+1) user send user's id_u to bank
+  -id_u->
+2)for any i belong [1, 2k]
+  a) user send a_i, c_i, d_i <-$- Z*_n
+  b) x_i = h_2(a_i, c_i)
+  c) y_i = h_2(a_i xor (id_u || i+v), d_i)
+//secret sharing with x_i and y_i, if I know a_i and c_i then can get id_u
+  d) r_i <-$- Z*_n
+  // r_i blinding factor
+  e) B_i = r_i^l * h1(x_i, y_i)
+    --{B_i}_(i belong [1, 2k]) --> bank
+3) bank choose uniformly J < [2k], s.t. |J| = k
+// J is a subset
+    <--J-- 
+4) user Open = {(k_i, c_i, d_i, r_i)}_(i belong J)
+    --Open-->
+5) Bank: for any i belong J: 
+   if B_i != r_i^l * h1(x_i, y_i), abort
+6) Bank: T = [2k]\J
+7) Bank: S' = Pei( k_i^d)_(where i belong T, multiple)
+  <- S' --
+8) User: if (s')^l != Pei(Bi)_(where i belong T), abort
+9) User: compute S = S' * Pei(R_i^-1)_(where i belong T)
+10) User: store S and v_s = v
+11) User: store {(a_j_i, c_j_i, d_j_i)}_(i belong [k])
+  for J_i belong T and 
+  h_1(x_j_1, y_j_1) <= ... <= h_1(x_j_k, y_j_k)
+12) User: Increment v:= v + 2k
+    Bank: Increment v:= v + 2k
+
+D) Spend protocol
+user(pp, pk):        merchant(pp, pk):
+user send coin S to merchant
+  -- coin S ->
+1) merchant: for any i belong [k]: choose c_i belong {0,1}
+  <- c={c_i}_(i belong [k])
+2) user: for any i belong [k]:
+  a) if c_i = 0
+     then v_i = (x_j_i, a_j_i xor (id_u || v_s + j_i), d_j_i)
+  b) if c_i = 1
+     then v_i = (y_j_i, a_j_i, c_j_i)
+  -- v = {v_i}_(i belong [k])
+3) merchant: for any i belong [k], compute h_1(x_j_i, y_j_i)
+4) If exists j belong [k-1] s.t. h_1(x_j_i, y_j_i) > h2(x_j_i+1, y_j_i+1),
+   then abort
+5) if s^l != Pei h1(x_j_i, Y_j_i) where i belong [k]
+   then akbort
+6) store (S, C, V)
+
+
+(E) deposit portocol:
+Merchant sends (S, C, V) to bank, which peoceeds as follows:
+1) for any i belong [k], compute h_1(x_j_i, y_j_i) from V_i
+2) if exists i belong [k-1] s.t. h_1(x_j_i, y_j_i) > h1(x_j_i+1, y_j_i+1)
+   then reject coin and abort
+3) if s^l != Pei h_1(x_j_i, y_j_i) where i belong [k]
+   then reject coin and abort
+4) if exists entry (S, C', V') belong DB for some C', V' then:
+  a) if c != c' then run procedure "Identify"
+  b) if c = c' then reject coin and abort
+5) Else (i.e. S was never deposited before):
+  accept coin and add (S,C,V) to DB
+
+(F) Identify:
+  bank has (S, C, V) and (S, C', V') with C != C'
+  --> exist i belong [k] s.t. c_i != c'_i
+  --> bank knows both a_j_i and a_j_i xor (id_u || (v_s + y_i))
+
+
+security analysis:
+user anonymity: withdraw and deposit cannot be linked
+analysis: 
+a) withdraw: bank receieves B_1, ..., B_2k with B_i = h_1(x_i, j_i) * r_i^c
+  because of blindness for any i belong T, the bank learns  nothing about h_1(x_i, y_i)
+  -> bank dose not know S = qiuhe_(h_1(x_i, y_i)^d)_(where i belong T)   (A) 
+b) deposit: bank receives (S, C, V) from merchant with:
+   - if c_i = 0 bank sees x_j_i, (a_j_i xor (id_u || ...)), d_j_i
+     (i) a_j_i cannot be derived from x_j_i = h_2(a_j_i, c_j_i)
+         because of hinding property of RO
+
+     (ii) (id_u||...) cannot be derived from t_j_i because of perfect security of secret sharing scheme
+   - if c_i = 1 bank sees y_j_i, a_j_i, c_j_i
+     (i) y_j_iis commitment -> binding property dose not reveal 
+         (a_j_i xor (id_u || ...))
+     (ii) a_j_i, c_j_i random values
+     -> hence id_u not revealed during deposit phase (B)
+
+By (A) + (B): withdraw and deposit cannot be lindked.
+
+(2) double standing protection
+goal when malicious user u* tries to double specnd coin, that he can be identified.
+analysis: consider 2 attack strategies of adversary u*
+
+strategy 1: u* tries to cheat in step 2c) of withdraw by embedding fake id, id*, and then tries to double spend without being detected.
+
+analysis : let l belong [2k] with l = |L| s.t.
+    y_i = h_2(a_i xor (id*_u || (V+i)), d_i), if i belong L
+          h_2(a_i xor (id_u || (V+i)), d_i), if i not belong L
+    phase 1 : malicious user u* succeed im withdraw protocol
+    -> u* can successfully withdraw ill-formed coin if : J and(jiao) L = empty(kong)
+    Let E_0 be event that J and(jiao) L = empty(kong), two cases:
+        (i) if l>k -> r_0[E_0] = 0
+        (ii) if 1 <= l <= k
+            Pr[E_0] = (up: 2k-l, down: k)/(up: 2k, down: k)    [A]
+            it can show: Pr[E_0] = lim_(k->infinity) (2^-l)    [B]
+
+    phase 2: u* tries to spend coin S with two merchants but it can not be identified.
+        Call this event E_1
+        Formally: Let M = [2k]\{L or(huo) J} with |M| = k-l
+            e.g. band(id_u | id_u | id*_u | id_u | id*_u)
+                  Let C, C' be challengers of two merchants
+                  if for any i belong M, we have C_i = C'_i that identification of u* not possible in deposit.
+            Pr[E_0 | E_1] =1/(2^(k+l))    [C]
+    puting things together [A] + [C]
+     Pr[k* succeeds] = Pr[E_0 and(jiao) E_1] = Pr[E_0] * Pr[E_1| E_0]
+                     = [A] * [C]
+                     = {(up:2*k*l, down: k)/(up:2k, down:k)} * {1/2^(k-l)}
+
+    from [B] Pr[k* succeeds] ~~ 2^-k (circa)
+
+strategy 2: u* cheats in spend protocol by opening x_i and y_i to "different" values that prevent identification
+
+analysis: u* attempys to open x_i to (a'_i, c'_i) and y_i to (b'_i, d'_i) s.t.
+        a'_i xor b'_i = id*_u||(..) with id*_u = id_u and(qie) x_i = h_2(a'_i, c'_i) and(qie) y_i = h_2(b'_i, d'_i)
+        

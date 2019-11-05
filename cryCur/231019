@@ -1,0 +1,72 @@
+Blind Signature Schemes formal security definition
+Def. one-more unforgeability
+A BS scheme (KG, <u, s>, verify) is one-more unfogeable
+if any PPT adverasry U*, it exists negl. such that for  sufficiently large n
+  Pr[Forge_n*^BS(1^n)=1] <= negl(n)
+
+Experiment Forge_n*^BS(1^n):
+(sk, pk) <- KG(1^n)
+((m1, G1), ... , (m_k+1, G_k+1)) <- K*^<., S(sn)>^k (pk)
+Retuen 1 if only if :
+- m_i != m_j  any i,j with i != j
+- verify(pk, m_i, G_i) = 1, for any i belong [k+1]
+- at most k interactions with <., S(sk)> where completed.
+- otherwise output 0
+
+Def. (Blindness):
+A BS scheme (KG, <u, s>, Verify) is computationallly blind
+(resp. statistically blind)
+if any PPT (resp. unbounded)
+adversaries S*, it exists negl(.) s.t. for suficiently large n:
+  Pr[Blind_s*^BS(1^n) = 1] <= 1/2 + negl(n)
+
+Blind_s*^BS(1^n):
+(pk, m0, m1, st_f) <-- S*(find, 1^n) 
+//state
+b <- {0,i}
+st_i <- S*^{{<u(pk, m_b), .>^1, <u(pk, m_1-b), .>^1}}(St_f)
+
+and let G_b, G_1-b is private output of
+U(pk, m_b) and U(pk, m_1-b)
+
+Set (G0, G1) = (gerad, gerad) if G0=gerad or G1=gerad
+//G is sigma
+b* <- S*(G0, G1, St_i)
+Returen 1 iff b = b*; otherwise return 0.
+
+Charm's RSA blind signature scheme
+(i) KG(1^n) -> (pk, sk) = ((N,e), d), s.t. d*e=1 mod y(N), and N = p*q is TSA modulos
+// y is fai
+(ii) Signing protocol <u, s>
+  User(pk, m belong {0, 1}*)
+  1) r <-$- Z*_N (blinding factor)
+    R = H(m)*r^e mod N
+    H is maps to Z*_N
+
+    send R to Signer
+
+  Signer(sk)
+  2) S = R^d mod N
+
+    send S to User
+
+  3) G= S*r^-1 mod N
+  4) Outputs G
+
+//1,3,4 by user, 2 by signer
+
+(iii) Verify(pk, m, G)
+if G^e = H(m) mod N, then output 1
+otherwise output 0.
+
+Correctness:
+If G was computed correctly, then:
+  G^e = S^e * r^-e = R^(d*e) * r^-e = R * r^-e = H(m)  richtig
+
+Blindness property
+  r^e is random and hence hides messages in form S* im step 1. 
+// just can see random value
+
+Unforgeability:
+Charm's protocol cannot be proven secure under standard RSA assumption.
+It can be proven secure under "one more inversion problem"
