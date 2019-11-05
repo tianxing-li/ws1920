@@ -1,0 +1,37 @@
+pederson protocols
+a) Gen(1^n) -> pp
+- generate group G with prime order q in which DL-problem is hard
+- sample generator g1, g2 from G
+- Output: pp=(G, g, g1, g2)
+
+b) Commit(pp, m) with m belong Zq
+- sample w <-$- Zq uniformly at random
+- compute c = g1^m*g2^w
+- output (c, d), where d =(m, w)
+
+c) Open(pp, c, d):
+- parse d as (m, w)
+- if c = g1^m*g2^w output m;
+  elsse ouput gerad (chuizhi) 
+
+ Lemma: (Gen, Commit, Open) is perfectly hiding   
+   Proof sketch:
+   w <- Zq ==> g2^w in uniform in G
+           ==> g2^w is a ont-time pad
+           ==> hides g2^w perfectly
+
+ Lemma: (Gen, Commit, Open) is computationally binding if DL is hard in G
+   Proof: Proof by reduction, i.e.:
+    Suppose it exists PPT A(pp) -> (c, d, d') satisfy 
+     gerad(chuizhi) != m = Open(rr, c, d) != Open(pp, c, d') = m' != gerad(chuizhi)
+    ==> g1^m*g2^w = g1^m'*g2^w' = c
+    ==> g1^(m-m') = g2^(w'-w)
+    ==> log_g2(g1^[m-m']) = w'-w
+    ==> log_g2(g1) = (w'-w)/(m-m')
+
+    How to transform this into attack against DL problem.
+
+    {DL challenger}  -g,g^x,q,G-> {  --pp=(G,g,y1=g^x,y2=g)-> {A} --> (c, d, d')}_(B bereaks DL) with d=(m,w), d'=(m',w')
+                    <------------  
+    if A breaks bingding with not-negl. prob.,
+    then B computes DL with non-negl. probability as (w'-w)/(m-m')
